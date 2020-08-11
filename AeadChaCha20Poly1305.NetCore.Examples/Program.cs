@@ -22,7 +22,7 @@ namespace AeadChaCha20Poly1305.NetCore.Examples
             var aeadChaCha20Poly1305 = new AeadChaCha20Poly1305(keyPin, nonce, new byte[] { 32 });
 
             // Encryption / Authentication
-            var dataPin = new PinnedMemory<byte>(data, false);
+            using var dataPin = new PinnedMemory<byte>(data, false);
             aeadChaCha20Poly1305.UpdateBlock(dataPin,0, dataPin.Length);
 
             using var output = new PinnedMemory<byte>(new byte[aeadChaCha20Poly1305.GetLength()]);

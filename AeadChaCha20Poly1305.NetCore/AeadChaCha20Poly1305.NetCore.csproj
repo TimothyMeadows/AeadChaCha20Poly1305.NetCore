@@ -2,11 +2,25 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Timothy D Meadows II</Authors>
+    <Description>Implementation of AEAD_CHACHA20_POLY1305 an authenticated encryption with additional data algorithm using ChaCha20, and Poly1305 designed by D. J. Bernstein. Optimized for PinnedMemory, and .NET core.</Description>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageProjectUrl>https://github.com/TimothyMeadows/AeadChaCha20Poly1305.NetCore</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TimothyMeadows/AeadChaCha20Poly1305.NetCore</RepositoryUrl>
+    <RepositoryType>Github</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ChaCha20.NetCore" Version="1.0.3" />
     <PackageReference Include="Poly1305.NetCore" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
