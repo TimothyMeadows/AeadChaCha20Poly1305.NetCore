@@ -28,14 +28,20 @@ namespace AeadChaCha20Poly1305.NetCore
         /** Encrypted nonce */
         private uint k0, k1, k2, k3;
 
-        public AeadChaCha20Poly1305(PinnedMemory<byte> key, byte[] iv, byte[] ad = null, int rounds = 20)
+        public AeadChaCha20Poly1305(PinnedMemory<byte> key, byte[] nonce, byte[] ad = null, int rounds = 20)
         {
+            if (key.Length != 32)
+                throw new ArgumentException("key must be 256bit (32 bytes)");
+
+            if (nonce.Length != 16)
+                throw new ArgumentException("nonce must be 128bit (16 bytes)");
+
             // Poly1305 Key
-            SetKey(key, iv);
+            SetKey(key, nonce);
             _poly1305 = new Poly1305.NetCore.Poly1305(_polyKey);
 
             // ChaCha20 Key, counter should default to 1 on construction
-            _chacha = new ChaCha20.NetCore.ChaCha20(key, iv, rounds);
+            _chacha = new ChaCha20.NetCore.ChaCha20(key, nonce, rounds);
 
             ad ??= new byte[BlockSize]; // empty block if not used.
             Pad(ref ad); // pad if less than multiple of 16

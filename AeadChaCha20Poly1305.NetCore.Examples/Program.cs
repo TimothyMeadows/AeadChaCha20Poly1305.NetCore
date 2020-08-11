@@ -9,17 +9,17 @@ namespace AeadChaCha20Poly1305.NetCore.Examples
     {
         static void Main(string[] args)
         {
-            var iv = new byte[16];
+            var nonce = new byte[16];
             var key = new byte[32];
             var data = new byte[1024];
 
             using var provider = new RNGCryptoServiceProvider();
-            provider.GetBytes(iv);
+            provider.GetBytes(nonce);
             provider.GetBytes(key);
             provider.GetBytes(data);
 
             using var keyPin = new PinnedMemory<byte>(key, false);
-            var aeadChaCha20Poly1305 = new AeadChaCha20Poly1305(keyPin, iv, new byte[] { 32 });
+            var aeadChaCha20Poly1305 = new AeadChaCha20Poly1305(keyPin, nonce, new byte[] { 32 });
 
             // Encryption / Authentication
             var dataPin = new PinnedMemory<byte>(data, false);
