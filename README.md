@@ -4,7 +4,7 @@
 Implementation of AEAD_CHACHA20_POLY1305 an authenticated encryption with additional data algorithm using ChaCha20, and Poly1305 designed by D. J. Bernstein. Optimized for PinnedMemory, and .NET core.
 
 You can read more about AEAD, ChaCha20, and Poly1305 using the resources below:
-- https://tools.ietf.org/html/rfc7539#section-2.8
+- https://datatracker.ietf.org/doc/html/rfc8439#section-2.8
 - https://blog.cloudflare.com/it-takes-two-to-chacha-poly/
 
 # Install
@@ -27,21 +27,20 @@ https://www.nuget.org/packages/AeadChaCha20Poly1305.NetCore/
 You can find more examples in the github examples project.
 
 ```csharp
-var nonce = new byte[16];
+var nonce = new byte[12];
 var key = new byte[32];
 var data = new byte[1024];
 
-using var provider = new RNGCryptoServiceProvider();
-provider.GetBytes(nonce);
-provider.GetBytes(key);
-provider.GetBytes(data);
+RandomNumberGenerator.Fill(nonce);
+RandomNumberGenerator.Fill(key);
+RandomNumberGenerator.Fill(data);
 
 using var keyPin = new PinnedMemory<byte>(key, false);
 var aeadChaCha20Poly1305 = new AeadChaCha20Poly1305(keyPin, nonce, new byte[] { 32 });
 
 // Encryption / Authentication
 using var dataPin = new PinnedMemory<byte>(data, false);
-eadChaCha20Poly1305.UpdateBlock(dataPin,0, dataPin.Length);
+aeadChaCha20Poly1305.UpdateBlock(dataPin,0, dataPin.Length);
 
 using var output = new PinnedMemory<byte>(new byte[aeadChaCha20Poly1305.GetLength()]);
 aeadChaCha20Poly1305.DoFinal(output, 0);
@@ -59,7 +58,7 @@ aeadChaCha20Poly1305.DoFinal(plain, 0);
 # Constructor
 
 ```csharp
-AeadChaCha20Poly1305(PinnedMemory<byte> key, byte[] nonce, byte[] ad = null, int rounds = 20)
+AeadChaCha20Poly1305(PinnedMemory<byte> key, byte[] nonce, byte[]? ad = null, int rounds = 20)
 ```
 
 # Methods
