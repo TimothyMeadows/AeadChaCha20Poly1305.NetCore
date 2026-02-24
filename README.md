@@ -1,119 +1,214 @@
 # AeadChaCha20Poly1305.NetCore
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![nuget](https://img.shields.io/nuget/v/AeadChaCha20Poly1305.NetCore.svg)](https://www.nuget.org/packages/AeadChaCha20Poly1305.NetCore/)
 
-Implementation of AEAD_CHACHA20_POLY1305 an authenticated encryption with additional data algorithm using ChaCha20, and Poly1305 designed by D. J. Bernstein. Optimized for PinnedMemory, and .NET core.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![nuget](https://img.shields.io/nuget/v/AeadChaCha20Poly1305.NetCore.svg)](https://www.nuget.org/packages/AeadChaCha20Poly1305.NetCore/)
 
-You can read more about AEAD, ChaCha20, and Poly1305 using the resources below:
-- https://datatracker.ietf.org/doc/html/rfc8439#section-2.8
-- https://blog.cloudflare.com/it-takes-two-to-chacha-poly/
+`AeadChaCha20Poly1305.NetCore` is a .NET implementation of **AEAD_CHACHA20_POLY1305** (RFC 8439).
 
-# Install
+It provides authenticated encryption with associated data (AEAD) using:
 
-From a command prompt
+- **ChaCha20** for encryption/decryption
+- **Poly1305** for authentication tags
+
+The API is optimized for integration with [`PinnedMemory`](https://github.com/TimothyMeadows/PinnedMemory) and supports both `PinnedMemory<byte>` and `byte[]` output workflows.
+
+You can read more in:
+
+- RFC 8439 (ChaCha20 & Poly1305): https://datatracker.ietf.org/doc/html/rfc8439#section-2.8
+- Cloudflare explainer: https://blog.cloudflare.com/it-takes-two-to-chacha-poly/
+
+---
+
+## Table of contents
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+  - [Encrypt and authenticate](#encrypt-and-authenticate)
+  - [Decrypt and verify](#decrypt-and-verify)
+- [API reference](#api-reference)
+  - [`AeadChaCha20Poly1305`](#aeadchacha20poly1305)
+- [Behavior notes](#behavior-notes)
+- [Best practices](#best-practices)
+- [Development](#development)
+- [Security notes](#security-notes)
+- [License](#license)
+
+---
+
+## Requirements
+
+- **.NET 8 SDK** for building and testing this repository.
+- Target runtime/framework for the package: **.NET 8** (`net8.0`).
+
+The repository includes a `global.json` to pin the SDK family used for development.
+
+---
+
+## Installation
+
+### NuGet Package Manager (CLI)
+
 ```bash
 dotnet add package AeadChaCha20Poly1305.NetCore
 ```
 
-```bash
+### Package Manager Console
+
+```powershell
 Install-Package AeadChaCha20Poly1305.NetCore
 ```
 
-You can also search for package via your nuget ui / website:
+### NuGet Gallery
 
-https://www.nuget.org/packages/AeadChaCha20Poly1305.NetCore/
+- https://www.nuget.org/packages/AeadChaCha20Poly1305.NetCore/
 
-# Examples
+---
 
-You can find more examples in the github examples project.
+## Quick start
+
+### Encrypt and authenticate
 
 ```csharp
-var nonce = new byte[12];
-var key = new byte[32];
-var data = new byte[1024];
+using System;
+using System.Security.Cryptography;
+using AeadChaCha20Poly1305.NetCore;
+using PinnedMemory;
+
+var nonce = new byte[12];   // 96-bit nonce per RFC 8439
+var keyBytes = new byte[32]; // 256-bit key
+var plaintext = new byte[1024];
+var associatedData = new byte[] { 0x20, 0x21, 0x22 };
 
 RandomNumberGenerator.Fill(nonce);
-RandomNumberGenerator.Fill(key);
-RandomNumberGenerator.Fill(data);
+RandomNumberGenerator.Fill(keyBytes);
+RandomNumberGenerator.Fill(plaintext);
 
-using var keyPin = new PinnedMemory<byte>(key, false);
-var aeadChaCha20Poly1305 = new AeadChaCha20Poly1305(keyPin, nonce, new byte[] { 32 });
+using var key = new PinnedMemory<byte>(keyBytes, false);
+using var cipher = new AeadChaCha20Poly1305(key, nonce, associatedData);
 
-// Encryption / Authentication
-using var dataPin = new PinnedMemory<byte>(data, false);
-aeadChaCha20Poly1305.UpdateBlock(dataPin,0, dataPin.Length);
+cipher.UpdateBlock(plaintext, 0, plaintext.Length);
 
-using var output = new PinnedMemory<byte>(new byte[aeadChaCha20Poly1305.GetLength()]);
-aeadChaCha20Poly1305.DoFinal(output, 0);
-var tag = aeadChaCha20Poly1305.GetTag(); // Poly1305 tag used to authenticate cipher
+using var ciphertext = new PinnedMemory<byte>(new byte[cipher.GetLength()]);
+cipher.DoFinal(ciphertext, 0);
 
-// Decryption / Authentication
-aeadChaCha20Poly1305.Reset();
-aeadChaCha20Poly1305.SetTag(tag);
-aeadChaCha20Poly1305.UpdateBlock(output,0, output.Length);
-
-using var plain = new PinnedMemory<byte>(new byte[aeadChaCha20Poly1305.GetLength()]);
-aeadChaCha20Poly1305.DoFinal(plain, 0);
+var tag = cipher.GetTag(); // 16-byte authentication tag
 ```
 
-# Constructor
+### Decrypt and verify
+
+```csharp
+// Reuse the same key, nonce, and associated data from encryption.
+// Provide the tag obtained from the encryption phase.
+
+cipher.Reset();
+cipher.SetTag(tag!);
+cipher.UpdateBlock(ciphertext, 0, ciphertext.Length);
+
+using var decrypted = new PinnedMemory<byte>(new byte[cipher.GetLength()]);
+cipher.DoFinal(decrypted, 0);
+
+// If tag verification fails, DoFinal throws ArgumentException.
+```
+
+For additional runnable examples, see `AeadChaCha20Poly1305.NetCore.Examples`.
+
+---
+
+## API reference
+
+## `AeadChaCha20Poly1305`
+
+### Constructor
 
 ```csharp
 AeadChaCha20Poly1305(PinnedMemory<byte> key, byte[] nonce, byte[]? ad = null, int rounds = 20)
 ```
 
-# Methods
+- `key` must be exactly **32 bytes**.
+- `nonce` must be exactly **12 bytes**.
+- `ad` is optional associated data and may be `null`.
+- `rounds` must be **20** (RFC 8439 requirement).
 
-Get the cipher output length.
+### Core methods
+
 ```csharp
 int GetLength()
-```
-
-Get the cipher authentication tag length.
-```csharp
-int GetTagLength()
-```
-
-Get the contents of the internal buffer, this can be used to compare data before encryption, or decryption.
-```csharp
 byte[] GetBuffer()
-```
-
-Update the cipher with a single byte.
-```csharp
-void Update(byte input)
-```
-
-Update the cipher with a pinned memory byte array.
-```csharp
-void UpdateBlock(PinnedMemory<byte> input, int inOff, int len)
-```
-
-Update the cipher with a byte array.
-```csharp
-void UpdateBlock(byte[] input, int inOff, int len)
-```
-
-Produce the final cipher outputting to pinned memory. Key & nonce remain.
-```csharp
-void DoFinal(PinnedMemory<byte> output, int outOff)
-```
-
-Get the final cipher tag, this should be called after DoFinal.
-```csharp
-PinnedMemory<byte> GetTag()
-```
-
-Set the final cipher tag, this should be called before DoFinal, and is required for decryption.
-```csharp
+int GetTagLength()
+PinnedMemory<byte>? GetTag()
 void SetTag(PinnedMemory<byte> value)
-```
-
-Reset the cipher back to it's initial state for further processing. Key remains until dispose is called.
-```csharp
+void Update(byte value)
+void UpdateBlock(byte[] value, int offset, int length)
+void UpdateBlock(PinnedMemory<byte> value, int offset, int length)
+void DoFinal(PinnedMemory<byte> output, int offset)
+void DoFinal(byte[] output, int offset)
 void Reset()
-```
-
-Clear key & nonce, reset cipher back to it's initial state.
-```csharp
 void Dispose()
 ```
+
+---
+
+## Behavior notes
+
+- `GetLength()` returns the length of buffered input data (ciphertext or plaintext length).
+- `GetTagLength()` returns **16** bytes.
+- If no tag is set, `DoFinal(...)` performs **encryption** and populates an authentication tag.
+- If a tag is set via `SetTag(...)`, `DoFinal(...)` performs **decryption** and verifies the provided tag.
+- On tag verification failure, decryption throws `ArgumentException`.
+- `Reset()` clears buffered data and tag state but retains key/nonce/ad configuration.
+- `Dispose()` zeroes key/nonce and releases owned resources.
+
+---
+
+## Best practices
+
+### 1) Treat nonces as unique per key
+
+Never reuse the same nonce with the same key across different messages.
+
+### 2) Keep associated data consistent
+
+The exact same associated data bytes used for encryption must be supplied during decryption.
+
+### 3) Handle tags carefully
+
+Always store/transmit the full 16-byte tag and set it before decryption.
+
+### 4) Use `using` and dispose promptly
+
+Dispose key and cipher instances as soon as they are no longer needed.
+
+### 5) Validate offsets/lengths in caller code
+
+Ensure destination buffers are sized to `GetLength()` before calling `DoFinal(...)`.
+
+---
+
+## Development
+
+### Build
+
+```bash
+dotnet build AeadChaCha20Poly1305.NetCore.sln
+```
+
+### Test
+
+```bash
+dotnet test AeadChaCha20Poly1305.NetCore.sln
+```
+
+---
+
+## Security notes
+
+- This library relies on .NET cryptography primitives (`ChaCha20Poly1305`) for AEAD operations.
+- Authentication must always be verified before trusting decrypted plaintext.
+- Keep key material secret and prefer memory-safe handling patterns (`PinnedMemory`, short-lived buffers, disposal).
+
+---
+
+## License
+
+MIT
